@@ -1,0 +1,25 @@
+# 字节码
+__pycache__/
+*.py[cod]
+*.so
+
+# 虚拟环境
+venv/
+env/
+.venv/
+.env
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 日志文件
+*.log
+
+# 本地数据库
+*.db
+*.sqlite3
+
+# 敏感信息
+config.local.py
+secrets.py
