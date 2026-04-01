@@ -137,7 +137,7 @@ class PDFContextMiddleware(AgentMiddleware):
         # ── 第三步：只处理「最后一条」用户消息中的 PDF 附件 ──
         pdf_info = self._extract_pdf_from_last_message(request)
         if pdf_info is not None:
-            pdf_data, pdf_name = pdf_info
+            pdf_data, pdf_name, enable_multimodal = pdf_info
             pdf_hash = hashlib.md5(pdf_data).hexdigest()
             if self._session_pdf_hash.get(thread_id) == pdf_hash:
                 logger.debug(
@@ -145,8 +145,8 @@ class PDFContextMiddleware(AgentMiddleware):
                     thread_id, pdf_hash,
                 )
             else:
-                logger.info("[PDFContextMiddleware] 检测到新 PDF: %s，开始提取文本…", pdf_name)
-                text = self._processor.extract_text(pdf_data, pdf_name)
+                logger.info("[PDFContextMiddleware] 检测到新 PDF: %s，开始提取文本（多模态: %s）…", pdf_name, enable_multimodal)
+                text = self._processor.extract_text(pdf_data, pdf_name, enable_multimodal)
                 if text:
                     self._session_docs[thread_id] = text
                     self._session_pdf_hash[thread_id] = pdf_hash
@@ -196,13 +196,16 @@ class PDFContextMiddleware(AgentMiddleware):
             pass
         return "__default__"
 
-    def _extract_pdf_from_last_message(self, request: ModelRequest) -> tuple[bytes, str] | None:
-        """只从「最后一条用户消息」中提取 PDF 附件。
+    def _extract_pdf_from_last_message(self, request: ModelRequest) -> tuple[bytes, str, bool] | None:
+        """只从「最后一条用户消息」中提取 PDF 附件和多模态配置。
 
         与旧的 _extract_latest_pdf_from_history 不同：
         - 旧方法：扫描全部历史消息 → 每轮对话都会找到历史中的 PDF → 每次都触发解析
         - 新方法：只看最后一条消息 → 只有用户本次上传了 PDF 才返回数据
         结合外层的 hash 比对，实现"首次上传才解析，后续对话完全跳过"的正确语义。
+
+        Returns:
+            tuple[bytes, str, bool] | None: (PDF字节数据, 文件名, 是否启用多模态) 或 None
         """
         if not request.messages:
             return None
@@ -211,6 +214,9 @@ class PDFContextMiddleware(AgentMiddleware):
         last_msg = request.messages[-1]
         if not isinstance(last_msg, HumanMessage):
             return None
+
+        # 从 additional_kwargs 读取多模态配置（前端传入）
+        enable_multimodal = last_msg.additional_kwargs.get("enable_pdf_multimodal", False)
 
         attachments = last_msg.additional_kwargs.get("attachments", [])
         if not isinstance(attachments, list):
@@ -229,7 +235,7 @@ class PDFContextMiddleware(AgentMiddleware):
             try:
                 pdf_bytes = _decode_base64(data)
                 filename = att.get("metadata", {}).get("filename", "document.pdf")
-                return pdf_bytes, filename
+                return pdf_bytes, filename, enable_multimodal
             except Exception as e:
                 logger.warning("[PDFContextMiddleware] PDF 解码失败: %s", e)
                 continue

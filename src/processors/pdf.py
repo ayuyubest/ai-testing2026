@@ -63,9 +63,9 @@ class PDFProcessor:
         self.enable_cache = enable_cache
         self.cache = _pdf_cache if enable_cache else {}
     
-    def extract_text(self, pdf_data: bytes, filename: str = "unknown.pdf") -> str:
+    def extract_text(self, pdf_data: bytes, filename: str = "unknown.pdf", enable_multimodal: bool = False) -> str:
         """从PDF字节数据中提取文本"""
-        return extract_pdf_text(pdf_data, filename, self.cache if self.enable_cache else None)
+        return extract_pdf_text(pdf_data, filename, self.cache if self.enable_cache else None, enable_multimodal)
     
     def clear_cache(self):
         """清空缓存"""
@@ -81,9 +81,16 @@ class PDFProcessor:
         }
 
 
-def extract_pdf_text(pdf_data: bytes, filename: str = "unknown.pdf", cache: Optional[dict] = None) -> str:
+def extract_pdf_text(pdf_data: bytes, filename: str = "unknown.pdf", cache: Optional[dict] = None, enable_multimodal: bool = False) -> str:
     """
     从PDF字节数据中提取文本，使用缓存避免重复解析
+
+    Args:
+        pdf_data: PDF 文件的字节数据
+        filename: 文件名
+        cache: 缓存字典
+        enable_multimodal: 是否启用多模态图片解析（从前端传入）
+
     提取的方法：
     1、langchain pdf加载器：https://docs.langchain.com/oss/python/integrations/document_loaders/index#pdfs
         推荐 pip install -qU langchain-community langchain-pymupdf4llm，支持基于多模态大模型进行图片解析
@@ -115,8 +122,8 @@ def extract_pdf_text(pdf_data: bytes, filename: str = "unknown.pdf", cache: Opti
         # Lazy import to avoid DLL loading issues at startup
         from langchain_pymupdf4llm import PyMuPDF4LLMLoader
 
-        logger.info(f"使用 多模态解析器 解析PDF: {filename}")
-        if settings.ENABLE_PDF_MULTIMODAL:
+        logger.info(f"使用 多模态解析器 解析PDF: {filename}, 多模态: {enable_multimodal}")
+        if enable_multimodal:
             from langchain_community.document_loaders.parsers import LLMImageBlobParser
             from core.llms import get_image_llm_model
 
