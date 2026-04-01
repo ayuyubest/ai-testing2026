@@ -13,14 +13,17 @@ from pathlib import Path
 def setup_environment():
     """Setup required environment variables"""
     # Add src to Python path
-
-    src_path = Path(__file__).parent / "src"
+    project_root = Path(__file__).parent
+    src_path = project_root / "src"
     sys.path.insert(0, str(src_path))
-    
+
+    # Change to project directory so relative paths work
+    os.chdir(str(project_root))
+
     # Load graphs from graph.json
-    config_path = Path(__file__).parent / "graph.json"
+    config_path = project_root / "graph.json"
     graphs = {}
-    
+
     if config_path.exists():
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)

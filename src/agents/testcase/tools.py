@@ -18,6 +18,7 @@ MCP 协议说明：
 import asyncio
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from .excel_tool import save_testcases_to_excel
 
 
 def create_mcp_client() -> MultiServerMCPClient:
@@ -54,15 +55,17 @@ def create_mcp_client() -> MultiServerMCPClient:
 # 全局工具初始化
 # ============================================================================
 
-# 创建 MCP 客户端实例
-# 该实例用于管理与所有 MCP 服务器的连接
-client = create_mcp_client()
+# 尝试加载 MCP 工具
+mcp_tools = []
+try:
+    client = create_mcp_client()
+    mcp_tools = asyncio.run(client.get_tools())
+    print(f"✅ 已加载 {len(mcp_tools)} 个 MCP 工具")
+except Exception as e:
+    print(f"⚠️  MCP 工具加载失败: {e}")
+    print("继续使用本地工具...")
 
-# 异步获取所有可用的 MCP 工具
-# asyncio.run() 在同步上下文中运行异步代码
-# client.get_tools() 返回所有已连接服务器提供的工具列表
-tools = asyncio.run(client.get_tools())
+# 添加本地工具
+tools = mcp_tools + [save_testcases_to_excel]
 
-# 打印工具加载信息，便于调试和确认服务连接状态
-print(tools)
-print(f"已加载 {len(tools)} 个工具: {[t.name for t in tools]}")
+print(f"📦 总共加载 {len(tools)} 个工具: {[t.name for t in tools]}")
